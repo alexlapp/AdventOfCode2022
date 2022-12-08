@@ -10,6 +10,8 @@ string dayString = Console.ReadLine() ?? "";
 Console.WriteLine();
 
 var type = Assembly.GetExecutingAssembly().GetType($"Advent_Of_Code.Days.Day{dayString}");
+if (type == null) return;
+
 puzzle = (IPuzzleSolution)Activator.CreateInstance(type);
 
 var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"Input\", $"{puzzle.GetType().Name}.txt");
