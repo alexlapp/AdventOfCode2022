@@ -101,25 +101,46 @@ namespace Advent_Of_Code.Days
             var squares = rawSquares.ToCharArray();
             var map = new Map(squares, width, height);
 
+            // Part 1
+
             var startingCoord = map.IndexToCoord(rawSquares.IndexOf('S'));
             var targetCoord = map.IndexToCoord(rawSquares.IndexOf('E'));
 
+            Console.WriteLine($"Distance from start to end: {ShortestPathLength(map, startingCoord, targetCoord)}");
+
+            // Part 2
+
+            var possibleStarts = new List<Coord>();
+            for (int i = 0; i < rawSquares.Length; i++)
+            {
+                if (rawSquares[i] == 'a') { possibleStarts.Add(map.IndexToCoord(i)); }
+            }
+
+            var shortestDistance = possibleStarts
+                .Select(start => ShortestPathLength(map, start, targetCoord))
+                .OrderBy(length => length)
+                .Where(length => length > 0) // -1 means it can't be reached
+                .First();
+
+            Console.WriteLine($"Shortest starting path from any 'a': {shortestDistance}");
+        }
+
+        private int ShortestPathLength(Map map, Coord start, Coord target)
+        {
             var visitedNodes = new HashSet<int>();
             var nodesToVisit = new Queue<VisitCoord>();
-            nodesToVisit.Enqueue(new VisitCoord(startingCoord, 0));
+            nodesToVisit.Enqueue(new VisitCoord(start, 0));
 
-            var distance = 0;
             while (nodesToVisit.Any())
             {
                 var node = nodesToVisit.Dequeue();
-                
+
                 if (visitedNodes.Contains(map.CoordToIndex(node.Coord))) { continue; }
                 visitedNodes.Add(map.CoordToIndex(node.Coord));
 
-                if (node.Coord.Equals(targetCoord)) 
+                if (node.Coord.Equals(target))
                 {
-                    distance = node.Distance;
-                    break;
+                    return node.Distance;
                 }
 
                 var above = map.Above(node.Coord);
@@ -127,20 +148,20 @@ namespace Advent_Of_Code.Days
                 var left = map.Left(node.Coord);
                 var right = map.Right(node.Coord);
 
-                if (above != null && CanTraverse(map.GetSquare(node.Coord), map.GetSquare(above))) 
-                    { nodesToVisit.Enqueue(new VisitCoord(above, node.Distance + 1)); }
+                if (above != null && CanTraverse(map.GetSquare(node.Coord), map.GetSquare(above)))
+                { nodesToVisit.Enqueue(new VisitCoord(above, node.Distance + 1)); }
 
                 if (below != null && CanTraverse(map.GetSquare(node.Coord), map.GetSquare(below)))
-                    { nodesToVisit.Enqueue(new VisitCoord(below, node.Distance + 1)); }
+                { nodesToVisit.Enqueue(new VisitCoord(below, node.Distance + 1)); }
 
                 if (left != null && CanTraverse(map.GetSquare(node.Coord), map.GetSquare(left)))
-                    { nodesToVisit.Enqueue(new VisitCoord(left, node.Distance + 1)); }
+                { nodesToVisit.Enqueue(new VisitCoord(left, node.Distance + 1)); }
 
                 if (right != null && CanTraverse(map.GetSquare(node.Coord), map.GetSquare(right)))
-                    { nodesToVisit.Enqueue(new VisitCoord(right, node.Distance + 1)); }
+                { nodesToVisit.Enqueue(new VisitCoord(right, node.Distance + 1)); }
             }
 
-            Console.WriteLine($"No way this works: {distance}");
+            return -1;
         }
 
         private bool CanTraverse(char start, char end)
