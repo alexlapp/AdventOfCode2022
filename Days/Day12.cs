@@ -15,6 +15,17 @@ namespace Advent_Of_Code.Days
         {
             return X == b.X && Y == b.Y;
         }
+
+        public Coord(int x, int y)
+        {
+            X = x;
+            Y = y;
+        }
+
+        public static Coord operator +(Coord a, Coord b)
+        {
+            return new Coord(a.X + b.X, a.Y + b.Y);
+        }
     }
 
     class Map
@@ -42,7 +53,7 @@ namespace Advent_Of_Code.Days
 
         public Coord IndexToCoord(int index)
         {
-            return new Coord { X = index % Width, Y = index / Width};
+            return new Coord(index % Width, index / Width);
         }
 
         public int CoordToIndex(Coord coord)
@@ -54,28 +65,28 @@ namespace Advent_Of_Code.Days
         {
             if (start.Y == 0) return null;
 
-            return new Coord { X = start.X, Y = start.Y - 1 };
+            return new Coord(start.X, start.Y - 1 );
         }
 
         public Coord? Below(Coord start)
         {
             if (start.Y == Height - 1) return null;
 
-            return new Coord { X = start.X, Y = start.Y + 1 };
+            return new Coord(start.X, start.Y + 1);
         }
 
         public Coord? Left(Coord start)
         {
             if (start.X == 0) return null;
 
-            return new Coord { X = start.X - 1, Y = start.Y };
+            return new Coord(start.X - 1, start.Y);
         }
 
         public Coord? Right(Coord start)
         {
             if (start.X == Width - 1) return null;
 
-            return new Coord { X = start.X + 1, Y = start.Y };
+            return new Coord(start.X + 1, start.Y);
         }
     }
 
