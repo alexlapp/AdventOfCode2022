@@ -8,5 +8,9 @@ namespace Advent_Of_Code.Days
 {
     public class Day17 : IPuzzleSolution
     {
+        public void Run(string input)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
