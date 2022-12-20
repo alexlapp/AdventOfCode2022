@@ -150,13 +150,15 @@ namespace Advent_Of_Code.Days
 
             var setPairs = subsets.Zip(complementSubsets).ToList();
             var maxWithElephant = 0;
-            foreach (var tuple in setPairs)
+            for (int i = setPairs.Count - 1; i >= 0; i--)
             {
+                Console.WriteLine(i);
+                var tuple = setPairs[i];
                 var subset = tuple.First;
                 var complement = tuple.Second;
 
                 var pairPressure = DoThing(tunnels, "AA", 26, subset) + DoThing(tunnels, "AA", 26, complement);
-                if (pairPressure > maximumPressure)
+                if (pairPressure > maxWithElephant)
                     maxWithElephant = pairPressure;
             }
 
