@@ -109,11 +109,6 @@ namespace Advent_Of_Code.Days
         public void AddHeight(int rows = 1)
         {
             Cave.AddRange(Enumerable.Repeat('.', _width * rows));
-            while (Cave.Count > 1_000_000_000)
-            {
-                Cave.RemoveRange(0, _width);
-                _heightOffset++;
-            }
         }
 
         public Point? RockPeak()
@@ -216,6 +211,11 @@ namespace Advent_Of_Code.Days
 
             return result;
         }
+
+        public bool AtStart()
+        {
+            return _index == 0;
+        }
     }
 
     public class Day17 : IPuzzleSolution
@@ -236,9 +236,16 @@ namespace Advent_Of_Code.Days
 
             var cave = new FallingRockCave();
 
-            for (long i = 0; i < 1000000000000; i++)
+            var metrics = new List<(int Height, int Growth)>();
+
+            //for (long i = 0; i < 1000000000000; i++)
+            while(metrics.Count < 5)
             {
-                Console.WriteLine($"Dropping rock {i.ToString().PadLeft(13, '_')}");
+                if (windGen.AtStart() && rockGen.AtStart())
+                {
+                    var caveHeight = (cave.RockPeak() ?? new Point(0, -1)).Y + 1;
+                    metrics.Add((Height: caveHeight, Growth: (metrics.Any() ? caveHeight - metrics.Last().Height : 0)));
+                }
 
                 var fallingRock = cave.AddRock(rockGen.Next());
 
@@ -267,7 +274,7 @@ namespace Advent_Of_Code.Days
             }
 
             var peakPoint = cave.RockPeak() ?? cave.IndexToPoint(cave.Cave.Count);
-            Console.WriteLine($"Tower is {peakPoint.Y + 1 + cave.HeightOffset} units tall");
+            Console.WriteLine($"Tower is {peakPoint.Y + 1} units tall");
         }
     }
 }
