@@ -10,7 +10,17 @@ namespace Advent_Of_Code.Days
     {
         public void Run(string input)
         {
-            throw new NotImplementedException();
+            var cubes = new HashSet<(int X, int Y, int Z)>();
+            foreach (var cube in input.Split("\r\n"))
+            {
+                var cubeCoords = cube.Split(',').Select(x => int.Parse(x)).ToList();
+                cubes.Add((X: cubeCoords[0], Y: cubeCoords[1], Z: cubeCoords[2]));
+            }
+
+            foreach (var cube in cubes)
+            {
+
+            }
         }
     }
 }
