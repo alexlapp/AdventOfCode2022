@@ -71,6 +71,32 @@ namespace Advent_Of_Code.Days
             Cave = Enumerable.Repeat('.', _width).ToList();
         }
 
+        public int[] CurrentSkyline()
+        {
+            var result = Enumerable.Repeat(0, _width).ToArray();
+
+            var peak = RockPeak();
+            if (peak == null)
+                return result;
+
+            for (int x = 0; x < _width; x++)
+            {
+                var distanceFromPeak = 0;
+                var startIndex = PointToIndex(new Point(x, peak.Y));
+                for (int i = startIndex; i >= 0; i -= _width)
+                {
+                    if (Cave[i] == '#')
+                    {
+                        result[x] = distanceFromPeak;
+                        break;
+                    }
+                    distanceFromPeak++;
+                }
+            }
+
+            return result;
+        }
+
         public void Print(FallingRock? rock = null)
         {
             List<Point> fallingRockPoints = new List<Point>();
@@ -198,6 +224,8 @@ namespace Advent_Of_Code.Days
         private T[] _options;
         private int _index;
 
+        public int Index => _index;
+
         public LoopingGenerator(IEnumerable<T> options)
         {
             _options = options.ToArray();
@@ -210,11 +238,6 @@ namespace Advent_Of_Code.Days
             _index = (_index + 1) % _options.Length;
 
             return result;
-        }
-
-        public bool AtStart()
-        {
-            return _index == 0;
         }
     }
 
@@ -236,17 +259,12 @@ namespace Advent_Of_Code.Days
 
             var cave = new FallingRockCave();
 
-            var metrics = new List<(int Height, int Growth)>();
+            var seenStates = new Dictionary<(string Skyline, int RockIndex, int WindIndex), (long RockCount, long CaveHeight)>();
+            long cyclePredictionHeight = 0;
 
-            //for (long i = 0; i < 1000000000000; i++)
-            while(metrics.Count < 5)
+            long numberOfRocksToDrop = 1000000000000;
+            for (long i = 0; i < numberOfRocksToDrop; i++)
             {
-                if (windGen.AtStart() && rockGen.AtStart())
-                {
-                    var caveHeight = (cave.RockPeak() ?? new Point(0, -1)).Y + 1;
-                    metrics.Add((Height: caveHeight, Growth: (metrics.Any() ? caveHeight - metrics.Last().Height : 0)));
-                }
-
                 var fallingRock = cave.AddRock(rockGen.Next());
 
                 while (fallingRock.IsFalling)
@@ -271,10 +289,29 @@ namespace Advent_Of_Code.Days
                         cave.SettleFallingRock(fallingRock);
                     }
                 }
+
+                var skyline = string.Join("", cave.CurrentSkyline());
+                var state = (Skyline: skyline, RockIndex: rockGen.Index, WindIndex: windGen.Index);
+                if (seenStates.ContainsKey(state))
+                {
+                    (var countAtLastCycle, var heightAtLastCycle) = seenStates[state];
+                    long rockCountInCycle = i - countAtLastCycle;
+                    long heightGained = (cave.RockPeak().Y + 1) - heightAtLastCycle;
+
+                    var cyclesToSimulate = (numberOfRocksToDrop - i) / rockCountInCycle;
+                    i += rockCountInCycle * cyclesToSimulate;
+                    cyclePredictionHeight = cyclesToSimulate * heightGained;
+
+                    seenStates.Clear();
+                }
+                else
+                {
+                    seenStates.Add(state, (RockCount: i, CaveHeight: cave.RockPeak().Y + 1));
+                }
             }
 
             var peakPoint = cave.RockPeak() ?? cave.IndexToPoint(cave.Cave.Count);
-            Console.WriteLine($"Tower is {peakPoint.Y + 1} units tall");
+            Console.WriteLine($"Tower is {peakPoint.Y + 1 + cyclePredictionHeight} units tall");
         }
     }
 }
