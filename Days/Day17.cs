@@ -106,14 +106,18 @@ namespace Advent_Of_Code.Days
             Console.Write("\n");
         }
 
-        public void AddHeight(int rows = 1)
+        public void RaiseWindow()
         {
-            Cave.AddRange(Enumerable.Repeat('.', _width * rows));
-            while (Cave.Count > 1_000_000_000)
+            while (Cave.Count > 1_000)
             {
                 Cave.RemoveRange(0, _width);
                 _heightOffset++;
             }
+        }
+
+        public void AddHeight(int rows = 1)
+        {
+            Cave.AddRange(Enumerable.Repeat('.', _width * rows));
         }
 
         public Point? RockPeak()
@@ -135,6 +139,7 @@ namespace Advent_Of_Code.Days
 
         public FallingRock AddRock(Rock shape)
         {
+            RaiseWindow();
             var firstOpenRow = 0;
 
             var rockPeak = RockPeak();
@@ -238,7 +243,6 @@ namespace Advent_Of_Code.Days
 
             for (long i = 0; i < 1000000000000; i++)
             {
-                Console.WriteLine($"Dropping rock {i.ToString().PadLeft(13, '_')}");
 
                 var fallingRock = cave.AddRock(rockGen.Next());
 
