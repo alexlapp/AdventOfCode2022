@@ -109,28 +109,16 @@ namespace Advent_Of_Code.Days
 
         public void Run(string input)
         {
-            // EXAAMPLE PARSING ONLY
-            // PRE-PARSE TO ACTUAL DATA INPUT
-            var actualInput = string.Join("\r\n", input
-                .Split("\r\n\r\n")
-                .Select(blueprint => string.Join(" ", blueprint.Split("\r\n").Select(line => line.Trim())))
-            );
+            var sum = input.Split("\r\n")
+                .Select(blueprint => new Blueprint(blueprint))
+                .Aggregate(0, (acc, blueprint) => acc + (blueprint.Id * FindOptimalOutput(blueprint, 24)));
 
-            //var sum = 0;
-            //foreach (var blueprintString in input.Split("\r\n"))
-            //{
-            //    var blueprint = new Blueprint(blueprintString);
-            //    sum += blueprint.Id * FindOptimalOutput(blueprint, 24);
-            //}
+            Console.WriteLine($"Sum of qualities: {sum}");
 
-            //Console.WriteLine($"Sum of qualities: {sum}");
-
-            var product = 1;
-            foreach (var blueprintString in input.Split("\r\n").Take(3))
-            {
-                var blueprint = new Blueprint(blueprintString);
-                product *= FindOptimalOutput(blueprint, 32);
-            }
+            var product = input.Split("\r\n")
+                .Take(3)
+                .Select(blueprint => new Blueprint(blueprint))
+                .Aggregate(1, (acc, blueprint) => acc * FindOptimalOutput(blueprint, 32));
 
             Console.WriteLine($"Product of first 3 blueprints: {product}");
         }
