@@ -7,167 +7,106 @@ using System.Threading.Tasks;
 
 namespace Advent_Of_Code.Days
 {
-    static class Resources
+    record Resources(int Ore, int Clay, int Obisidian, int Geode) : IComparable<Resources>
     {
-        public const int ORE = 0;
-        public const int CLAY = 1;
-        public const int OBSIDIAN = 2;
-        public const int GEODE = 3;
+        public static Resources operator +(Resources a) => a;
+        public static Resources operator -(Resources a) => new Resources(-a.Ore, -a.Clay, -a.Obisidian, -a.Geode);
+        public static Resources operator+(Resources a, Resources b)
+            => new Resources(a.Ore + b.Ore, a.Clay + b.Clay, a.Obisidian + b.Obisidian, a.Geode + b.Geode);
+        public static Resources operator -(Resources a, Resources b)
+            => new Resources(a.Ore - b.Ore, a.Clay - b.Clay, a.Obisidian - b.Obisidian, a.Geode - b.Geode);
+        public bool All(Func<int, bool> f)
+            => f(Ore) && f(Clay) && f(Obisidian) && f(Geode);
+
+        public bool All(Resources other, Func<int, int, bool> f)
+            => f(Ore, other.Ore) && f(Clay, other.Clay) && f(Obisidian, other.Obisidian) && f(Geode, other.Geode);
+
+        public (int, int, int, int) AsTuple() => (Ore, Clay, Obisidian, Geode);
+
+        public int CompareTo(Resources other)
+        {
+            if (Geode < other.Geode)
+                return -1;
+            if (Geode > other.Geode)
+                return 1;
+            if (Obisidian < other.Obisidian)
+                return -1;
+            if (Obisidian > other.Obisidian)
+                return 1;
+            if (Clay < other.Clay)
+                return -1;
+            if (Clay > other.Clay)
+                return 1;
+            if (Ore < other.Ore)
+                return -1;
+            if (Ore > other.Ore)
+                return 1;
+
+            return 0;
+        }
     }
 
-    class FactoryState
+    class Blueprint
     {
-        public int Time { get; set; }
-        public List<int> RobotCount { get; set; }
-        public List<int> ResourceCount { get; set; }
+        private Regex _blueprintParser = new Regex(@"Blueprint ([\d]+).*ore robot[\D]+([\d]+).*clay robot[\D]+([\d]+).*obsidian robot[\D]+([\d]+)[\D]+([\d]+).*geode robot[\D]+([\d]+)[\D]+([\d]+)", RegexOptions.Compiled);
 
-        public FactoryState(int time, List<int> botCount, List<int> resCount)
+        public int Id { get; }
+        public (Resources, Resources)[] CostProduction { get; }
+
+        public Blueprint(string blueprintString)
         {
-            Time = time;
-            RobotCount = new List<int>(botCount);
-            ResourceCount = new List<int>(resCount);
-        }
-    }
+            var groups = _blueprintParser.Match(blueprintString).Groups;
 
-    class BuildCost
-    {
-        public int OreCost { get; set; }
-        public int ClayCost { get; set; }
-        public int ObsidianCost { get; set; }
+            Id = int.Parse(groups[1].Value);
+            CostProduction = new (Resources, Resources)[5];
 
-        public BuildCost()
-        {
-            OreCost = 0;
-            ClayCost = 0;
-            ObsidianCost = 0;
-        }
-    }
+            CostProduction[0] = (
+                new Resources(int.Parse(groups[2].Value), 0, 0, 0),
+                new Resources(1, 0, 0, 0));
 
-    class RobotFactory
-    {
-        private Regex _blueprintParser = new Regex(@"ore robot[\D]+([\d]+).*clay robot[\D]+([\d]+).*obsidian robot[\D]+([\d]+)[\D]+([\d]+).*geode robot[\D]+([\d]+)[\D]+([\d]+)", RegexOptions.Compiled);
+            CostProduction[1] = (
+                new Resources(int.Parse(groups[3].Value), 0, 0, 0),
+                new Resources(0, 1, 0, 0));
 
-        private List<int> _robotCounts;
-        private List<int> _resourceCounts;
-        private List<BuildCost> _buildCosts;
+            CostProduction[2] = (
+                new Resources(int.Parse(groups[4].Value), int.Parse(groups[5].Value), 0, 0),
+                new Resources(0, 0, 1, 0));
 
-        private int _time;
-        private Stack<FactoryState> _states;
+            CostProduction[3] = (
+                new Resources(int.Parse(groups[6].Value), 0, int.Parse(groups[7].Value), 0),
+                new Resources(0, 0, 0, 1));
 
-        public RobotFactory(string blueprint)
-        {
-            _robotCounts = Enumerable.Repeat(0, 4).ToList();
-            _robotCounts[Resources.ORE]++;
-
-            _resourceCounts = Enumerable.Repeat(0, 4).ToList();
-
-            _time = 0;
-            _states = new Stack<FactoryState>();
-            SaveState();
-
-            var regexGroups = _blueprintParser.Match(blueprint).Groups;
-
-            _buildCosts = new List<BuildCost>()
-            {
-                new BuildCost() { OreCost = int.Parse(regexGroups[1].Value) },
-                new BuildCost() { OreCost = int.Parse(regexGroups[2].Value) },
-                new BuildCost() { OreCost = int.Parse(regexGroups[3].Value), ClayCost = int.Parse(regexGroups[4].Value) },
-                new BuildCost() { OreCost = int.Parse(regexGroups[5].Value), ClayCost = int.Parse(regexGroups[6].Value) },
-            };
-        }
-
-        private void SaveState()
-        {
-            _states.Push(new FactoryState(_time, _robotCounts, _resourceCounts));
-        }
-
-        private void Gather()
-        {
-            for (int r = 0; r < 4; r++)
-            {
-                _resourceCounts[r] += _robotCounts[r];
-            }
-        }
-
-        private bool CanBuildRobot(int type)
-        {
-            var buildCost = _buildCosts[type];
-            return _resourceCounts[Resources.ORE] >= buildCost.OreCost
-                && _resourceCounts[Resources.CLAY] >= buildCost.ClayCost
-                && _resourceCounts[Resources.OBSIDIAN] >= buildCost.ObsidianCost;
-        }
-
-        private void BuildRobot(int type)
-        {
-            while(!CanBuildRobot(type))
-            {
-                Gather();
-                _time++;
-            }
-
-            Gather();
-
-            var buildCost = _buildCosts[type];
-            _resourceCounts[Resources.ORE] -= buildCost.OreCost;
-            _resourceCounts[Resources.CLAY] -= buildCost.ClayCost;
-            _resourceCounts[Resources.OBSIDIAN] -= buildCost.ObsidianCost;
-
-            _robotCounts[type]++;
-            _time++;
-
-            SaveState();
-        }
-    
-        private void PassTime(int step = 1)
-        {
-            for (int i = 0; i < step; i++)
-            {
-                Gather();
-                _time++;
-            }
-        }
-
-        private void PassUntilTime(int targetTime)
-        {
-            var stepCount = targetTime - _time;
-            PassTime(stepCount);
-        }
-
-        private void UndoBuild()
-        {
-            var state = _states.Pop();
-            _time = _states.Peek().Time;
-            _robotCounts = new List<int>(_states.Peek().RobotCount);
-            _resourceCounts = new List<int>(_states.Peek().ResourceCount);
-        }
-
-        private int TimeToBuild(int type)
-        {
-            var buildCost = _buildCosts[type];
-
-            return Math.Max(
-                Math.Max(
-                    buildCost.OreCost - _resourceCounts[Resources.ORE], 
-                    buildCost.ClayCost - _resourceCounts[Resources.CLAY]), 
-                    buildCost.ObsidianCost - _resourceCounts[Resources.OBSIDIAN]);
-        }
-
-        public List<int> PotentialRobotTargets()
-        {
-            var result = new List<int>() { Resources.ORE, Resources.CLAY };
-
-            if (_robotCounts[Resources.CLAY] > 0)
-                result.Add(Resources.OBSIDIAN);
-
-            if (_robotCounts[Resources.OBSIDIAN] > 0)
-                result.Add(Resources.GEODE);
-
-            return result;
+            CostProduction[4] = (new Resources(0, 0, 0, 0), new Resources(0, 0, 0, 0));
         }
     }
 
     public class Day19 : IPuzzleSolution
     {
+        int FindOptimalOutput(Blueprint blueprint, int time)
+        {
+            var todo = new List<(Resources, Resources)>() { (new Resources(0, 0, 0, 0), new Resources(1, 0, 0, 0)) };
+            for (int t = time; t > 0; t--)
+            {
+                var rawTodo = new List<(Resources, Resources)>();
+                foreach ((var have, var make) in todo)
+                {
+                    foreach ((var cost, var prod) in blueprint.CostProduction)
+                    {
+                        if (have.Ore >= cost.Ore && have.Clay >= cost.Clay && have.Obisidian >= cost.Obisidian && have.Geode >= cost.Geode)
+                        {
+                            rawTodo.Add((have + make - cost, make + prod));
+                        }
+                    }
+                }
+                todo = rawTodo
+                    .OrderByDescending(t => t.Item1 + t.Item2 + t.Item2)
+                    .Take(10000)
+                    .ToList();
+            }
+            var result = todo.Max((state) => state.Item1.Geode);
+            return result;
+        }
+
         public void Run(string input)
         {
             // EXAAMPLE PARSING ONLY
@@ -177,9 +116,23 @@ namespace Advent_Of_Code.Days
                 .Select(blueprint => string.Join(" ", blueprint.Split("\r\n").Select(line => line.Trim())))
             );
 
-            foreach (var line in actualInput.Split("\r\n"))
+            //var sum = 0;
+            //foreach (var blueprintString in input.Split("\r\n"))
+            //{
+            //    var blueprint = new Blueprint(blueprintString);
+            //    sum += blueprint.Id * FindOptimalOutput(blueprint, 24);
+            //}
+
+            //Console.WriteLine($"Sum of qualities: {sum}");
+
+            var product = 1;
+            foreach (var blueprintString in input.Split("\r\n").Take(3))
             {
+                var blueprint = new Blueprint(blueprintString);
+                product *= FindOptimalOutput(blueprint, 32);
             }
+
+            Console.WriteLine($"Product of first 3 blueprints: {product}");
         }
     }
 }
