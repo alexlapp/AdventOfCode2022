@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Advent_Of_Code.Days;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,10 +18,19 @@ namespace Advent_Of_Code.Helpers.Maps
             Y = y;
         }
 
+        public Point(Point other)
+        {
+            X = other.X;
+            Y = other.Y;
+        }
+
         public static Point operator +(Point a, Point b)
             => new Point(a.X + b.X, a.Y + b.Y);
         public static Point operator -(Point a, Point b)
             => new Point(a.X - b.X, a.Y - b.Y);
+
+        public static Point operator *(Point a, int m)
+            => new Point(a.X * m, a.Y * m);
         public override string ToString() { return $"({X}, {Y})"; }
     }
 
@@ -48,6 +58,29 @@ namespace Advent_Of_Code.Helpers.Maps
             _squares = Enumerable.Repeat(seed, width * height).ToList();
         }
 
+        public T GetSquare(int index)
+        {
+            return Squares[index];
+        }
+
+        public T GetSquare(Point p)
+        {
+            return GetSquare(IndexFromPoint(p));
+        }
+
+        public bool TryGetSquare(int index, out T? square)
+        {
+            if (index < 0 || index >= _squares.Count()) { square = default; return false; }
+
+            square = GetSquare(index);
+            return true;
+        }
+
+        public bool TryGetSquare(Point p, out T? square)
+        {
+            return TryGetSquare(IndexFromPoint(p), out square);
+        }
+
         public Point PointFromIndex(int index)
         {
             return new Point(index % _width, index / _height);
@@ -56,6 +89,33 @@ namespace Advent_Of_Code.Helpers.Maps
         public int IndexFromPoint(Point p)
         {
             return (p.Y * _width) + p.X;
+        }
+        public Point? Above(Point start)
+        {
+            if (start.Y == 0) return null;
+
+            return new Point(start.X, start.Y - 1);
+        }
+
+        public Point? Below(Point start)
+        {
+            if (start.Y == Height - 1) return null;
+
+            return new Point(start.X, start.Y + 1);
+        }
+
+        public Point? Left(Point start)
+        {
+            if (start.X == 0) return null;
+
+            return new Point(start.X - 1, start.Y);
+        }
+
+        public Point? Right(Point start)
+        {
+            if (start.X == Width - 1) return null;
+
+            return new Point(start.X + 1, start.Y);
         }
     }
 }

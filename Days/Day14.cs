@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Advent_Of_Code.Helpers.Maps;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -24,7 +25,7 @@ namespace Advent_Of_Code.Days
     class MoveResult
     {
         public MoveState MoveState { get; set; }
-        public Coord Position { get; set; }
+        public Point Position { get; set; }
     }
 
     class Cave
@@ -41,7 +42,7 @@ namespace Advent_Of_Code.Days
             Tiles = Enumerable.Repeat(CaveTileTypes.Air, Width * Height).ToArray();
         }
 
-        public MoveResult? TryMove(Coord sandCoord, Coord targetCoord)
+        public MoveResult? TryMove(Point sandCoord, Point targetCoord)
         {
             switch (GetTileType(targetCoord))
             {
@@ -57,15 +58,15 @@ namespace Advent_Of_Code.Days
             return null;
         }
 
-        public MoveResult MoveSand(Coord sandCoord)
+        public MoveResult MoveSand(Point sandCoord)
         {
-            return (TryMove(sandCoord, sandCoord + new Coord(0, 1)) 
-                ?? TryMove(sandCoord, sandCoord + new Coord(-1, 1))
-                ?? TryMove(sandCoord, sandCoord + new Coord(1, 1))
+            return (TryMove(sandCoord, sandCoord + new Point(0, 1)) 
+                ?? TryMove(sandCoord, sandCoord + new Point(-1, 1))
+                ?? TryMove(sandCoord, sandCoord + new Point(1, 1))
                 ?? new MoveResult() { MoveState = MoveState.Settled });
         }
 
-        public CaveTileTypes GetTileType(Coord coord)
+        public CaveTileTypes GetTileType(Point coord)
         {
             if (coord.X >= 0 && coord.X < Width && coord.Y >= 0 && coord.Y < Height)
             {
@@ -75,27 +76,27 @@ namespace Advent_Of_Code.Days
             return CaveTileTypes.None;
         }
 
-        public void AddRocks(Coord start, Coord end)
+        public void AddRocks(Point start, Point end)
         {
             if (start.X == end.X)
             {
-                var target = new Coord(start.X, start.Y); 
+                var target = new Point(start.X, start.Y); 
                 var direction = start.Y < end.Y ? 1 : -1;
                 while (target.Y != end.Y)
                 {
                     Tiles[CoordToIndex(target)] = CaveTileTypes.Rock;
-                    target = target + new Coord(0, direction);
+                    target = target + new Point(0, direction);
                 }
                 Tiles[CoordToIndex(target)] = CaveTileTypes.Rock;
             }
             else if (start.Y == end.Y)
             {
-                var target = new Coord(start.X, start.Y);
+                var target = new Point(start.X, start.Y);
                 var direction = start.X < end.X ? 1 : -1;
                 while (target.X != end.X)
                 {
                     Tiles[CoordToIndex(target)] = CaveTileTypes.Rock;
-                    target = target + new Coord(direction, 0);
+                    target = target + new Point(direction, 0);
                 }
                 Tiles[CoordToIndex(target)] = CaveTileTypes.Rock;
             }
@@ -105,7 +106,7 @@ namespace Advent_Of_Code.Days
             }
         }
 
-        public bool AddSand(Coord addPoint)
+        public bool AddSand(Point addPoint)
         {
             if (Tiles[CoordToIndex(addPoint)] == CaveTileTypes.Sand) { return false; }
 
@@ -113,12 +114,12 @@ namespace Advent_Of_Code.Days
             return true;
         }
 
-        public Coord IndexToCoord(int index)
+        public Point IndexToCoord(int index)
         {
-            return new Coord(index % Width, index / Width);
+            return new Point(index % Width, index / Width);
         }
 
-        public int CoordToIndex(Coord coord)
+        public int CoordToIndex(Point coord)
         {
             return (coord.Y * Width) + coord.X;
         }
@@ -126,10 +127,10 @@ namespace Advent_Of_Code.Days
 
     public class Day14 : IPuzzleSolution
     {
-        Coord ParseCoord(string stringCoord)
+        Point ParseCoord(string stringCoord)
         {
             var values = stringCoord.Split(",");
-            return new Coord(int.Parse(values[0]), int.Parse(values[1]));
+            return new Point(int.Parse(values[0]), int.Parse(values[1]));
         }
 
         public void Run(string input)
@@ -157,15 +158,15 @@ namespace Advent_Of_Code.Days
                     cave.AddRocks(points[i], points[i + 1]);
                 }
             }
-            cave.AddRocks(new Coord(0, cave.Height - 1), new Coord(cave.Width - 1, cave.Height - 1));
+            cave.AddRocks(new Point(0, cave.Height - 1), new Point(cave.Width - 1, cave.Height - 1));
 
-            Coord sandCoord;
+            Point sandCoord;
             MoveResult moveResult;
 
             var continueDropping = true;
             while (continueDropping)
             {
-                sandCoord = new Coord(500, 0);
+                sandCoord = new Point(500, 0);
                 continueDropping = cave.AddSand(sandCoord);
                 do
                 {
