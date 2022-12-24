@@ -36,7 +36,7 @@ namespace Advent_Of_Code.Days
             };
 
             var resultPoint = new Point(startingPoint);
-            var lookaheadPoint = resultPoint + offset;
+            var lookaheadPoint = resultPoint;
 
             MapTiles square; // Define here so we aren't allocating multiple times in loop
             for (int i = 0; i < distance; i++)
@@ -45,8 +45,18 @@ namespace Advent_Of_Code.Days
                 {
                     // actual look ahead point is wrapped around to other side
                     var wrapOffset = offset * -1;
+                    var wrapPoint = new Point(resultPoint);
+                    while (board.TryGetSquare(lookaheadPoint + wrapOffset, out square) && square != MapTiles.NONE)
+                    {
+                        wrapPoint += wrapOffset;
+                    }
+                    lookaheadPoint = wrapPoint;
                 }
+                else { lookaheadPoint += offset; }
 
+                if (board.GetSquare(lookaheadPoint) == MapTiles.WALL) { return resultPoint; }
+
+                resultPoint = lookaheadPoint;
             }
             return resultPoint;
         }
@@ -58,21 +68,48 @@ namespace Advent_Of_Code.Days
             var directions = groups[1].ToCharArray();
 
             var boardWidth = mapString.Split("\r\n").Max(l => l.Length);
-            var board = new Grid<MapTiles>(
-                boardWidth,
-                mapString.Count(x => x == '\n') + 1, 
+            var board = new Grid<MapTiles>(boardWidth, mapString.Count(x => x == '\n') + 1, 
                 string.Join("", mapString.Split("\r\n").Select(x => x.PadRight(boardWidth))).Select(x =>
                 {
-                    switch (x)
+                    return x switch
                     {
-                        case '.':
-                            return MapTiles.GROUND;
-                        case '#':
-                            return MapTiles.WALL;
-                        default:
-                            return MapTiles.NONE;
-                    }
+                        '.' => MapTiles.GROUND,
+                        '#' => MapTiles.WALL,
+                        _ => MapTiles.NONE,
+                    };
                 }).ToList());
+
+            //var mapLines = mapString.Split("\r\n").ToList();
+            //for (int y = 0; y < mapLines.Count; y++)
+            //{
+            //    var line = mapLines[y];
+            //    for (int x = 0; x < line.Length; x++)
+            //    {
+            //        var tile = line[x] switch
+            //        {
+            //            '.' => MapTiles.GROUND,
+            //            '#' => MapTiles.WALL,
+            //            _ => MapTiles.NONE,
+            //        };
+
+            //        board.Squares[(y * board.Width) + x] = tile;
+            //    }
+            //}
+
+            for (int y = 0; y < board.Height; y++)
+            {
+                for (int x = 0; x < board.Width; x++)
+                {
+                    var c = board.GetSquare(new Point(x, y)) switch
+                    {
+                        MapTiles.GROUND => '.',
+                        MapTiles.WALL => '#',
+                        _ => ' ',
+                    };
+                    Console.Write(c);
+                }
+                Console.WriteLine();
+            }
 
             var location = board.PointFromIndex(board.Squares.FindIndex(x => x == MapTiles.GROUND));
             var facing = Direction.RIGHT;

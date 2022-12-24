@@ -78,6 +78,8 @@ namespace Advent_Of_Code.Helpers.Maps
 
         public bool TryGetSquare(Point p, out T? square)
         {
+            if (p.X < 0 || p.X >= _width || p.Y < 0 || p.Y >= _height) { square = default; return false; }
+
             return TryGetSquare(IndexFromPoint(p), out square);
         }
 
