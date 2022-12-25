@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Advent_Of_Code.Helpers.Maps
 {
-    public class Point
+    public class Point : IComparable<Point>
     {
         public int X { get; set; }
         public int Y { get; set; }
@@ -28,10 +28,28 @@ namespace Advent_Of_Code.Helpers.Maps
             => new Point(a.X + b.X, a.Y + b.Y);
         public static Point operator -(Point a, Point b)
             => new Point(a.X - b.X, a.Y - b.Y);
-
         public static Point operator *(Point a, int m)
             => new Point(a.X * m, a.Y * m);
+
+        public static bool operator >(Point a, Point b)
+            => a.X > b.X && a.Y > b.Y;
+        public static bool operator <(Point a, Point b)
+            => a.X < b.X && a.Y < b.Y;
+        public static bool operator >=(Point a, Point b)
+            => a.X >= b.X && a.Y >= b.Y;
+        public static bool operator <=(Point a, Point b)
+            => a.X <= b.X && a.Y <= b.Y;
+
         public override string ToString() { return $"({X}, {Y})"; }
+
+        public int CompareTo(Point? other)
+        {
+            if (other == null) return 1;
+            if (X < other.X || Y < other.Y) return -1;
+            if (X > other.X || Y > other.Y) return 1;
+
+            return 0;
+        }
     }
 
     public class Grid<T>
