@@ -28,6 +28,8 @@ namespace Advent_Of_Code.Helpers.Maps
             => new Point(a.X + b.X, a.Y + b.Y);
         public static Point operator -(Point a, Point b)
             => new Point(a.X - b.X, a.Y - b.Y);
+        public static Point operator *(Point a, Point b)
+            => new Point(a.X * b.X, a.Y * b.Y);
         public static Point operator *(Point a, int m)
             => new Point(a.X * m, a.Y * m);
 
@@ -39,6 +41,16 @@ namespace Advent_Of_Code.Helpers.Maps
             => a.X >= b.X && a.Y >= b.Y;
         public static bool operator <=(Point a, Point b)
             => a.X <= b.X && a.Y <= b.Y;
+        public static bool operator ==(Point a, Point b)
+            => a.X == b.X && a.Y == b.Y;
+        public static bool operator !=(Point a, Point b)
+            => a.X != b.X || a.Y != b.Y;
+
+        public Point Transform(Func<int, int> f)
+            => new Point(f(X), f(Y));
+ 
+        public static Point Abs(Point p)
+            => new Point(Math.Abs(p.X), Math.Abs(p.Y));
 
         public override string ToString() { return $"({X}, {Y})"; }
 

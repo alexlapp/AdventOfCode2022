@@ -75,20 +75,29 @@ namespace Advent_Of_Code.Days
             return direction;
         }
 
+        public static Point AsPoint(this Direction direction)
+        {
+            switch (direction)
+            {
+                case Direction.RIGHT:
+                    return new Point(1, 0);
+                case Direction.LEFT:
+                    return new Point(-1, 0);
+                case Direction.DOWN:
+                    return new Point(0, 1);
+                case Direction.UP:
+                    return new Point(0, -1);
+            }
+
+            return new Point(0, 0);
+        }
     }
 
     public class Day22 : IPuzzleSolution
     {
-        private Point MoveFlat(Grid<MapTiles> board, Point startingPoint, Direction facing, int distance)
+        private (Point, Direction) MoveFlat(Grid<MapTiles> board, Point startingPoint, Direction facing, int distance)
         {
-            var offset = facing switch
-            {
-                Direction.RIGHT => new Point(1, 0),
-                Direction.DOWN => new Point(0, 1),
-                Direction.LEFT => new Point(-1, 0),
-                Direction.UP => new Point(0, -1),
-                _ => new Point(0, 0)
-            };
+            var offset = facing.AsPoint();
 
             var resultPoint = new Point(startingPoint);
             var lookaheadPoint = resultPoint;
@@ -109,23 +118,16 @@ namespace Advent_Of_Code.Days
                 }
                 else { lookaheadPoint += offset; }
 
-                if (board.GetSquare(lookaheadPoint) == MapTiles.WALL) { return resultPoint; }
+                if (board.GetSquare(lookaheadPoint) == MapTiles.WALL) { return (resultPoint, facing); }
 
                 resultPoint = lookaheadPoint;
             }
-            return resultPoint;
+            return (resultPoint, facing);
         }
 
-        private Point MoveCube(Grid<MapTiles> board, Point startingPoint, Direction facing, int distance, int faceLength)
+        private (Point, Direction) MoveCube(FlatCube<MapTiles> cube, Grid<MapTiles> board, Point startingPoint, Direction facing, int distance)
         {
-            var offset = facing switch
-            {
-                Direction.RIGHT => new Point(1, 0),
-                Direction.DOWN => new Point(0, 1),
-                Direction.LEFT => new Point(-1, 0),
-                Direction.UP => new Point(0, -1),
-                _ => new Point(0, 0)
-            };
+            var currentFacing = facing;
 
             var resultPoint = new Point(startingPoint);
             var lookaheadPoint = resultPoint;
@@ -133,105 +135,26 @@ namespace Advent_Of_Code.Days
             MapTiles square; // Define here so we aren't allocating multiple times in loop
             for (int i = 0; i < distance; i++)
             {
-                var foundSquare = board.TryGetSquare(lookaheadPoint + offset, out square);
+                var foundSquare = board.TryGetSquare(lookaheadPoint + currentFacing.AsPoint(), out square);
                 if (!foundSquare || square == MapTiles.NONE)
                 {
-                    
-                    if (foundSquare)
-                    {
-                        var rotatedOffset = new Point(offset.Y, offset.X);
-                        var isFacingCorrect = board.TryGetSquare((lookaheadPoint + offset) + (rotatedOffset * faceLength), out square) && square != MapTiles.NONE;
+                    // Wrapping required
+                    (var newLookaheadPoint, var newFacing) = cube.Wrap(lookaheadPoint, currentFacing);
 
-                        if (!isFacingCorrect)
-                        {
-                            rotatedOffset = rotatedOffset * -1;
-                            isFacingCorrect = board.TryGetSquare((lookaheadPoint + offset) + (rotatedOffset * faceLength), out square) && square != MapTiles.NONE;
-                        }
-
-                        if (isFacingCorrect)
-                        {
-                            // We are now facing the edge we will walk to 
-                            var edgeDistance = 1;
-                            var wrapPoint = new Point(lookaheadPoint + offset);
-                            while(board.TryGetSquare(wrapPoint + rotatedOffset, out square) && square == MapTiles.NONE)
-                            {
-                                edgeDistance++;
-                                wrapPoint += rotatedOffset;
-                            }
-
-                            wrapPoint += offset * edgeDistance;
-                            offset = rotatedOffset;
-                            lookaheadPoint = wrapPoint;
-                        }
-                        else
-                        {
-                            // We are wrapping more complicated
-                            var newOffset = offset * -1;
-                        }
-
-                    }
-                    else
-                    {
-                        var newOffset = offset * -1;
-
-                        // Face could be on opposite end
-                        var oppositePoint = (lookaheadPoint + offset) + (newOffset * (faceLength * 4));
-                        var isOnOpposite = board.TryGetSquare(oppositePoint, out _);
-                        if (isOnOpposite)
-                        {
-                            offset = newOffset;
-                            lookaheadPoint = oppositePoint;
-                        }
-                        else
-                        {
-                            // Going to have to look for wings
-                        }
-                    }
+                    lookaheadPoint = newLookaheadPoint;
+                    currentFacing = newFacing;
                 }
-                else { lookaheadPoint += offset; }
+                else { lookaheadPoint += currentFacing.AsPoint(); }
 
-                if (board.GetSquare(lookaheadPoint) == MapTiles.WALL) { return resultPoint; }
+                if (board.GetSquare(lookaheadPoint) == MapTiles.WALL) { return (resultPoint, currentFacing); }
 
                 resultPoint = lookaheadPoint;
             }
-            return resultPoint;
+            return (resultPoint, currentFacing);
         }
 
-        public void Run(string input)
+        private (Point, Direction) Traverse(char[] directions, Grid<MapTiles> board, Func<Grid<MapTiles>, Point, Direction, int, (Point, Direction)> traversalStrategy)
         {
-            var groups = input.Split("\r\n\r\n").ToList();
-            var mapString = groups[0];
-            var directions = groups[1].ToCharArray();
-
-            var boardWidth = mapString.Split("\r\n").Max(l => l.Length);
-            var board = new Grid<MapTiles>(boardWidth, mapString.Count(x => x == '\n') + 1, 
-                string.Join("", mapString.Split("\r\n").Select(x => x.PadRight(boardWidth))).Select(x =>
-                {
-                    return x switch
-                    {
-                        '.' => MapTiles.GROUND,
-                        '#' => MapTiles.WALL,
-                        _ => MapTiles.NONE,
-                    };
-                }).ToList());
-
-            //var mapLines = mapString.Split("\r\n").ToList();
-            //for (int y = 0; y < mapLines.Count; y++)
-            //{
-            //    var line = mapLines[y];
-            //    for (int x = 0; x < line.Length; x++)
-            //    {
-            //        var tile = line[x] switch
-            //        {
-            //            '.' => MapTiles.GROUND,
-            //            '#' => MapTiles.WALL,
-            //            _ => MapTiles.NONE,
-            //        };
-
-            //        board.Squares[(y * board.Width) + x] = tile;
-            //    }
-            //}
-
             var location = board.PointFromIndex(board.Squares.FindIndex(x => x == MapTiles.GROUND));
             var facing = Direction.RIGHT;
 
@@ -252,13 +175,41 @@ namespace Advent_Of_Code.Days
                     if (i + 1 == directions.Count() || directions[i + 1].Equals('L') || directions[i + 1].Equals('R'))
                     {
                         var moveDistance = int.Parse(builder.ToString());
-                        location = MoveFlat(board, location, facing, moveDistance);
+                        (var newLocation, var newFacing) = traversalStrategy(board, location, facing, moveDistance);
+                        location = newLocation;
+                        facing = newFacing;
                         builder.Clear();
                     }
                 }
             }
 
-            Console.WriteLine($"Password is: {(1000 * (location.Y + 1)) + (4 * (location.X + 1)) + (int)facing}");
+            return (location, facing);
+        }
+
+        public void Run(string input)
+        {
+            var groups = input.Split("\r\n\r\n").ToList();
+            var mapString = groups[0];
+            var directions = groups[1].ToCharArray();
+
+            var boardWidth = mapString.Split("\r\n").Max(l => l.Length);
+            var board = new Grid<MapTiles>(boardWidth, mapString.Count(x => x == '\n') + 1, 
+                string.Join("", mapString.Split("\r\n").Select(x => x.PadRight(boardWidth))).Select(x =>
+                {
+                    return x switch
+                    {
+                        '.' => MapTiles.GROUND,
+                        '#' => MapTiles.WALL,
+                        _ => MapTiles.NONE,
+                    };
+                }).ToList());
+
+            (var flatFinalLocation, var flatFinalDirection) = Traverse(directions, board, MoveFlat);
+            Console.WriteLine($"Password is: {(1000 * (flatFinalLocation.Y + 1)) + (4 * (flatFinalLocation.X + 1)) + (int)flatFinalDirection}");
+
+            var cube = new FlatCube<MapTiles>(board, 4, (tile) => tile != MapTiles.NONE);
+            (var cubeFinalLocation, var cubeFinalDirection) = Traverse(directions, board, (board, p, d, i) => MoveCube(cube, board, p, d, i));
+            Console.WriteLine($"Password is: {(1000 * (cubeFinalLocation.Y + 1)) + (4 * (cubeFinalLocation.X + 1)) + (int)cubeFinalDirection}");
         }
     }
 
@@ -277,6 +228,11 @@ namespace Advent_Of_Code.Days
         public Point LocalToGrid(Point p) => p + UpperLeft;
         public bool Contains(Point p) => p >= UpperLeft && p <= LowerRight;
 
+        public bool WalkingOffEdge(Point p, Direction d)
+        {
+            return Contains(p) && !Contains(p + d.AsPoint());
+        }
+
         public CubeFace(int id, Point upperLeft, int length)
         {
             Id = id;
@@ -285,7 +241,13 @@ namespace Advent_Of_Code.Days
         }
     }
 
-    record struct Edge(int FaceId, Direction Direction);
+    record struct Edge(int FaceId, Direction Direction)
+    {
+        public Edge Opposite()
+        {
+            return new Edge(FaceId, Direction.Opposite());
+        }
+    };
 
     enum EdgeType
     {
@@ -298,7 +260,7 @@ namespace Advent_Of_Code.Days
     class FlatCube<T>
     {
         public CubeFace[] Faces { get; }
-        public Dictionary<Edge, (Edge, EdgeType)> EdgeMappings { get; };
+        public Dictionary<Edge, (Edge, EdgeType)> EdgeMappings { get; }
         public Grid<T> Grid { get; }
 
         public FlatCube(Grid<T> grid, int faceLength, Func<T, bool> isFaceSqaure)
@@ -326,13 +288,151 @@ namespace Advent_Of_Code.Days
             MapCornerTraversals(isFaceSqaure);
         }
 
-        private void AddOppositeMapping(Edge key, Edge value, EdgeType type)
+        public bool TryGetEdge(Point p, Direction d, out Edge edge)
         {
-            if (EdgeMappings.ContainsKey(key)) return;
+            var face = FindFaceContainingPoint(p);
+            if (face == null)
+            {
+                edge = default;
+                return false;
+            }
+
+            edge = new Edge(face.Id, d);
+            return true;
+        }
+
+        public (Point, Direction) Wrap(Point start, Direction facing)
+        {
+            if (!TryGetEdge(start, facing, out var edge)) { throw new Exception("This should never happen"); }
+            var startFace = Faces[edge.FaceId];
+
+            if (!startFace.WalkingOffEdge(start, facing)) { return (start + facing.AsPoint(), facing); }
+
+            (var connectedEdge, var edgeType) = EdgeMappings[edge];
+            var connectedFace = Faces[connectedEdge.FaceId];
+
+            var resultPoint = new Point(start);
+            var resultFacing = facing;
+
+            switch (edgeType)
+            {
+                case EdgeType.Connected:
+                    resultFacing = connectedEdge.Direction;
+                    resultPoint = resultPoint + resultFacing.AsPoint();
+                    break;
+
+                case EdgeType.Short:
+                    {
+                        var startLocal = startFace.GridToLocal(start);
+                        var endLocal = new Point(startLocal.Y, startLocal.X);
+                        resultPoint = connectedFace.LocalToGrid(endLocal);
+                        resultFacing = connectedEdge.Direction;
+                        break;
+                    }
+
+                case EdgeType.WalkBack:
+                    {
+                        if (facing == connectedEdge.Direction)
+                        {
+                            var startLocal = startFace.GridToLocal(start);
+
+                            var axisMask = Point.Abs(facing.AsPoint());
+                            var axisValue = (startLocal * axisMask == new Point(0, 0)) ? axisMask * (startFace.Length - 1) : new Point(0, 0); ;
+
+                            var offAxisMask = Point.Abs(new Point(facing.AsPoint().Y, facing.AsPoint().X));
+                            var offAxisValue = offAxisMask * startLocal;
+
+
+                            resultPoint = connectedFace.LocalToGrid(offAxisValue + axisValue);
+                            resultFacing = connectedEdge.Direction;
+                        }
+                        else if (facing.Opposite() == connectedEdge.Direction)
+                        {
+                            throw new Exception("Not implemented and maybe not possible");
+                        }
+                        else
+                        {
+                            var startLocal = startFace.GridToLocal(start);
+
+                            var startAxisMask = Point.Abs(facing.AsPoint());
+                            var startAxisValue = startAxisMask * startLocal;
+
+                            var firstValue = new Point(startAxisValue.Y, startAxisValue.X);
+
+                            if (!((facing == Direction.RIGHT && connectedEdge.Direction == Direction.DOWN)
+                                || (facing == Direction.DOWN && connectedEdge.Direction == Direction.RIGHT)))
+                            {
+                                firstValue = startAxisMask * firstValue.Transform(x => (startFace.Length - 1) - x);
+                            }
+
+                            var secondValue = connectedEdge.Direction.Opposite().AsPoint().Transform(x => x > 0 ? 1 : 0) * (startFace.Length - 1);
+
+                            resultPoint = firstValue + secondValue;
+                            resultFacing = connectedEdge.Direction;
+                        }
+                        break;
+                    }
+
+                case EdgeType.CornerTraversal:
+                    {
+
+                        var startLocal = startFace.GridToLocal(start);
+
+                        var startAxisMask = Point.Abs(facing.AsPoint());
+                        var startAxisValue = startAxisMask * startLocal.Transform(x => (startFace.Length - 1) - x); ;
+
+                        var firstValue = new Point(startAxisValue.Y, startAxisValue.X);
+
+                        var secondValue = connectedEdge.Direction.Opposite().AsPoint().Transform(x => x > 0 ? 1 : 0) * (startFace.Length - 1);
+
+                        resultPoint = firstValue + secondValue;
+                        resultFacing = connectedEdge.Direction;
+
+                        break;
+                    }
+            }
+
+            return (resultPoint, resultFacing);
+        }
+
+        private List<Edge> UnmappedEdges()
+        {
+            var result = new List<Edge>();
+
+            for (int i = 0; i < Faces.Length; i++)
+            {
+                foreach (Direction dir in (Direction[])Enum.GetValues(typeof(Direction)))
+                {
+                    var edge = new Edge(i, dir);
+                    if (!EdgeMappings.ContainsKey(edge)) { result.Add(edge); }
+                }
+            }
+
+            return result;
+        }
+
+        private void AddMapping(Edge edgeA, Edge edgeB, EdgeType type)
+        {
+            if (EdgeMappings.ContainsKey(edgeA)) return;
+
+            EdgeMappings.Add(edgeA, (edgeB, type));
+
+            var edgeBFlipped = new Edge(edgeB.FaceId, edgeB.Direction.Opposite());
+            if (EdgeMappings.ContainsKey(edgeBFlipped)) return;
 
             EdgeMappings.Add(
-                new Edge(value.FaceId, value.Direction.Opposite()),
-                (new Edge(key.FaceId, key.Direction.Opposite()), type));
+                edgeBFlipped,
+                (new Edge(edgeA.FaceId, edgeA.Direction.Opposite()), type));
+        }
+
+        private CubeFace? FindFaceContainingPoint(Point p)
+        {
+            foreach (var face in Faces)
+            {
+                if (face.Contains(p)) { return face; }
+            }
+
+            return null;
         }
 
         private void MapConnectedEdges(Func<T, bool> isFaceSquare)
@@ -344,12 +444,11 @@ namespace Advent_Of_Code.Days
                 if (!EdgeMappings.ContainsKey(upKey))
                 {
                     var upTestPoint = face.UpperLeft + new Point(0, -face.Length);
-                    var connectedFace = Faces.First(f => f.Id != face.Id && f.Contains(upTestPoint));
+                    var connectedFace = FindFaceContainingPoint(upTestPoint);
                     if (connectedFace != null)
                     {
                         var connectedEdge = new Edge(connectedFace.Id, Direction.UP);
-                        EdgeMappings.Add(upKey, (connectedEdge, EdgeType.Connected));
-                        AddOppositeMapping(upKey, connectedEdge, EdgeType.Connected);
+                        AddMapping(upKey, connectedEdge, EdgeType.Connected);
                     }
                 }
 
@@ -358,12 +457,11 @@ namespace Advent_Of_Code.Days
                 if (!EdgeMappings.ContainsKey(rightKey))
                 {
                     var rightTestPoint = face.UpperLeft + new Point(face.Length, 0);
-                    var connectedFace = Faces.First(f => f.Id != face.Id && f.Contains(rightTestPoint));
+                    var connectedFace = FindFaceContainingPoint(rightTestPoint);
                     if (connectedFace != null)
                     {
                         var connectedEdge = new Edge(connectedFace.Id, Direction.RIGHT);
-                        EdgeMappings.Add(rightKey, (connectedEdge, EdgeType.Connected));
-                        AddOppositeMapping(upKey, connectedEdge, EdgeType.Connected);
+                        AddMapping(rightKey, connectedEdge, EdgeType.Connected);
                     }
                 }
 
@@ -372,12 +470,11 @@ namespace Advent_Of_Code.Days
                 if (!EdgeMappings.ContainsKey(downKey))
                 {
                     var downTestPoint = face.UpperLeft + new Point(0, face.Length);
-                    var connectedFace = Faces.First(f => f.Id != face.Id && f.Contains(downTestPoint));
+                    var connectedFace = FindFaceContainingPoint(downTestPoint);
                     if (connectedFace != null)
                     {
                         var connectedEdge = new Edge(connectedFace.Id, Direction.DOWN);
-                        EdgeMappings.Add(downKey, (connectedEdge, EdgeType.Connected));
-                        AddOppositeMapping(upKey, connectedEdge, EdgeType.Connected);
+                        AddMapping(downKey, connectedEdge, EdgeType.Connected);
                     }
                 }
 
@@ -385,13 +482,12 @@ namespace Advent_Of_Code.Days
                 var leftKey = new Edge(face.Id, Direction.LEFT);
                 if (!EdgeMappings.ContainsKey(leftKey))
                 {
-                    var downTestPoint = face.UpperLeft + new Point(0, face.Length);
-                    var connectedFace = Faces.First(f => f.Id != face.Id && f.Contains(downTestPoint));
+                    var leftTestPoint = face.UpperLeft + new Point(-face.Length, 0);
+                    var connectedFace = FindFaceContainingPoint(leftTestPoint);
                     if (connectedFace != null)
                     {
                         var connectedEdge = new Edge(connectedFace.Id, Direction.LEFT);
-                        EdgeMappings.Add(leftKey, (connectedEdge, EdgeType.Connected));
-                        AddOppositeMapping(upKey, connectedEdge, EdgeType.Connected);
+                        AddMapping(leftKey, connectedEdge, EdgeType.Connected);
                     }
                 }
             }
@@ -399,17 +495,120 @@ namespace Advent_Of_Code.Days
 
         private void MapShortEdges(Func<T, bool> isFaceSquare)
         {
+            foreach (var edge in UnmappedEdges())
+            {
+                if (EdgeMappings.ContainsKey(edge)) { continue; }
 
+                (var faceId, var direction) = edge;
+                var face = Faces[faceId];
+
+                var connectedFace = FindFaceContainingPoint(face.UpperLeft + (direction.AsPoint() * face.Length));
+                if (connectedFace != null) continue;
+
+                var shortEdgeOffsetCCW = direction.AsPoint() + direction.TurnLeft().AsPoint();
+                shortEdgeOffsetCCW *= face.Length;
+
+                var ccwFace = FindFaceContainingPoint(face.UpperLeft + shortEdgeOffsetCCW);
+                if (ccwFace != null)
+                {
+                    var connection = new Edge(ccwFace.Id, direction.TurnLeft());
+                    AddMapping(edge, connection, EdgeType.Connected);
+                }
+                else
+                {
+                    var shortEdgeOffsetCW = direction.AsPoint() + direction.TurnRight().AsPoint();
+                    shortEdgeOffsetCW *= face.Length;
+                    
+                    var cwFace = FindFaceContainingPoint(face.UpperLeft + shortEdgeOffsetCW);
+                    if (cwFace != null)
+                    {
+                        var connection = new Edge(cwFace.Id, direction.TurnRight());
+                        AddMapping(edge, connection, EdgeType.Connected);
+                    }
+                }
+            }
         }
 
+        private Edge? WalkbckEdge(Edge edge)
+        {
+            var currentEdge = edge.Opposite();
+            for (int i = 0; i < 3; i++)
+            {
+                if (EdgeMappings.TryGetValue(currentEdge, out var connection))
+                {
+                    currentEdge = connection.Item1;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+
+            return currentEdge.Opposite();
+        }
+        
         private void MapWalkBacks(Func<T, bool> isFaceSquare)
         {
+            foreach (var edge in UnmappedEdges())
+            {
+                if (EdgeMappings.ContainsKey(edge)) { continue; }
 
+                var connection = WalkbckEdge(edge);
+                if (connection != null)
+                {
+                    AddMapping(edge, (Edge)connection, EdgeType.WalkBack);
+                }
+            }
+        }
+
+        private Edge? CornerTraversalCW(Edge edge)
+        {
+            var upperEdge = new Edge(edge.FaceId, edge.Direction.TurnLeft());
+
+            if (!EdgeMappings.TryGetValue(upperEdge, out var upperConnection)) { return null; }
+            var followedEdge = upperConnection.Item1;
+            var edgeToConnection = new Edge(followedEdge.FaceId, followedEdge.Direction.TurnRight());
+
+            if (!EdgeMappings.TryGetValue(edgeToConnection, out var connectedUpperEdgeValue)) { return null; }
+            var connectedUpperEdge = connectedUpperEdgeValue.Item1;
+
+            return new Edge(connectedUpperEdge.FaceId, connectedUpperEdge.Direction.TurnLeft());
+        }
+
+        private Edge? CornerTraversalCCW(Edge edge)
+        {
+
+            var lowerEdge = new Edge(edge.FaceId, edge.Direction.TurnRight());
+
+            if (!EdgeMappings.TryGetValue(lowerEdge, out var lowerConnection)) { return null; }
+            var followedEdge = lowerConnection.Item1;
+            var edgeToConnection = new Edge(followedEdge.FaceId, followedEdge.Direction.TurnLeft());
+
+            if (!EdgeMappings.TryGetValue(edgeToConnection, out var connectedLowerEdgeValue)) { return null; }
+            var connectedLowerEdge = connectedLowerEdgeValue.Item1;
+
+            return new Edge(connectedLowerEdge.FaceId, connectedLowerEdge.Direction.TurnRight());
         }
 
         private void MapCornerTraversals(Func<T, bool> isFaceSquare)
         {
+            foreach (var edge in UnmappedEdges())
+            {
+                if (EdgeMappings.ContainsKey(edge)) { continue; }
 
+                var connectionCW = CornerTraversalCW(edge);
+                if (connectionCW != null)
+                {
+                    AddMapping(edge, (Edge)connectionCW, EdgeType.CornerTraversal);
+                    continue;
+                }
+
+                var connectionCCW = CornerTraversalCCW(edge);
+                if (connectionCCW != null)
+                {
+                    AddMapping(edge, (Edge)connectionCCW, EdgeType.CornerTraversal);
+                }
+            }
         }
     }
 }
