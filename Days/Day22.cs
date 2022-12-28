@@ -378,22 +378,14 @@ namespace Advent_Of_Code.Days
                                 if (x == 0)
                                     return 0;
                                 if (x < 0)
-                                    return startFace.Length - x;
+                                    return startFace.Length + x;
 
                                 return x - 1;
                             });
 
-                            // Reflect first value if "0" edge is different
-                            //var shouldReflectFirstValue =
-                            //    !((facing == Direction.RIGHT && connectedEdge.Direction == Direction.DOWN)
-                            //    || (facing == Direction.DOWN && connectedEdge.Direction == Direction.RIGHT));
-
-                            //if (shouldReflectFirstValue)
-                            //    firstValue = Point.Abs(facing.AsPoint()) * firstValue.Transform(x => (startFace.Length - 1) - x);
-
                             var secondValue = connectedEdge.Direction.Opposite().AsPoint().Transform(x => x > 0 ? 1 : 0) * (startFace.Length - 1);
 
-                            resultPoint = firstValue + secondValue;
+                            resultPoint = connectedFace.LocalToGrid(firstValue + secondValue);
                             resultFacing = connectedEdge.Direction;
                         }
                         break;
