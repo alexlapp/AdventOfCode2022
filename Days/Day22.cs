@@ -127,30 +127,35 @@ namespace Advent_Of_Code.Days
 
         private (Point, Direction) MoveCube(FlatCube<MapTiles> cube, Grid<MapTiles> board, Point startingPoint, Direction facing, int distance)
         {
-            var currentFacing = facing;
-
             var resultPoint = new Point(startingPoint);
+            var resultFacing = facing;
+
             var lookaheadPoint = resultPoint;
+            var lookaheadFacing = resultFacing;
+
+            if (distance == 49)
+                Console.WriteLine("DEBUG");
 
             MapTiles square; // Define here so we aren't allocating multiple times in loop
             for (int i = 0; i < distance; i++)
             {
-                var foundSquare = board.TryGetSquare(lookaheadPoint + currentFacing.AsPoint(), out square);
+                var foundSquare = board.TryGetSquare(lookaheadPoint + lookaheadFacing.AsPoint(), out square);
                 if (!foundSquare || square == MapTiles.NONE)
                 {
                     // Wrapping required
-                    (var newLookaheadPoint, var newFacing) = cube.Wrap(lookaheadPoint, currentFacing);
+                    (var newLookaheadPoint, var newFacing) = cube.Wrap(lookaheadPoint, lookaheadFacing);
 
                     lookaheadPoint = newLookaheadPoint;
-                    currentFacing = newFacing;
+                    lookaheadFacing = newFacing;
                 }
-                else { lookaheadPoint += currentFacing.AsPoint(); }
+                else { lookaheadPoint += lookaheadFacing.AsPoint(); }
 
-                if (board.GetSquare(lookaheadPoint) == MapTiles.WALL) { return (resultPoint, currentFacing); }
+                if (board.GetSquare(lookaheadPoint) == MapTiles.WALL) { return (resultPoint, resultFacing); }
 
                 resultPoint = lookaheadPoint;
+                resultFacing = lookaheadFacing;
             }
-            return (resultPoint, currentFacing);
+            return (resultPoint, resultFacing);
         }
 
         private (Point, Direction) Traverse(char[] directions, Grid<MapTiles> board, Func<Grid<MapTiles>, Point, Direction, int, (Point, Direction)> traversalStrategy)
@@ -207,7 +212,7 @@ namespace Advent_Of_Code.Days
             (var flatFinalLocation, var flatFinalDirection) = Traverse(directions, board, MoveFlat);
             Console.WriteLine($"Password is: {(1000 * (flatFinalLocation.Y + 1)) + (4 * (flatFinalLocation.X + 1)) + (int)flatFinalDirection}");
 
-            var cube = new FlatCube<MapTiles>(board, 4, (tile) => tile != MapTiles.NONE);
+            var cube = new FlatCube<MapTiles>(board, 50, (tile) => tile != MapTiles.NONE);
             (var cubeFinalLocation, var cubeFinalDirection) = Traverse(directions, board, (board, p, d, i) => MoveCube(cube, board, p, d, i));
             Console.WriteLine($"Password is: {(1000 * (cubeFinalLocation.Y + 1)) + (4 * (cubeFinalLocation.X + 1)) + (int)cubeFinalDirection}");
         }
@@ -323,9 +328,16 @@ namespace Advent_Of_Code.Days
 
                 case EdgeType.Short:
                     {
-                        var startLocal = startFace.GridToLocal(start);
-                        var endLocal = new Point(startLocal.Y, startLocal.X);
-                        resultPoint = connectedFace.LocalToGrid(endLocal);
+                        var walkDistance = 0;
+                        var walkPoint = new Point(start);
+                        while (startFace.Contains(walkPoint))
+                        {
+                            walkPoint += connectedEdge.Direction.AsPoint();
+                            walkDistance++;
+                        }
+                        walkPoint += facing.AsPoint() * walkDistance;
+
+                        resultPoint = walkPoint;
                         resultFacing = connectedEdge.Direction;
                         break;
                     }
@@ -350,20 +362,34 @@ namespace Advent_Of_Code.Days
                         {
                             throw new Exception("Not implemented and maybe not possible");
                         }
-                        else
+                        else // facing and connected can be treated like short edges
                         {
-                            var startLocal = startFace.GridToLocal(start);
-
-                            var startAxisMask = Point.Abs(facing.AsPoint());
-                            var startAxisValue = startAxisMask * startLocal;
-
-                            var firstValue = new Point(startAxisValue.Y, startAxisValue.X);
-
-                            if (!((facing == Direction.RIGHT && connectedEdge.Direction == Direction.DOWN)
-                                || (facing == Direction.DOWN && connectedEdge.Direction == Direction.RIGHT)))
+                            var walkOffset = 0;
+                            var walkDirection = connectedEdge.Direction;
+                            var walkPoint = new Point(start);
+                            while (startFace.Contains(walkPoint))
                             {
-                                firstValue = startAxisMask * firstValue.Transform(x => (startFace.Length - 1) - x);
+                                walkPoint += walkDirection.AsPoint();
+                                walkOffset++;
                             }
+                            var facingOffset = facing.AsPoint() * walkOffset;
+                            var firstValue = facingOffset.Transform(x =>
+                            {
+                                if (x == 0)
+                                    return 0;
+                                if (x < 0)
+                                    return startFace.Length - x;
+
+                                return x - 1;
+                            });
+
+                            // Reflect first value if "0" edge is different
+                            //var shouldReflectFirstValue =
+                            //    !((facing == Direction.RIGHT && connectedEdge.Direction == Direction.DOWN)
+                            //    || (facing == Direction.DOWN && connectedEdge.Direction == Direction.RIGHT));
+
+                            //if (shouldReflectFirstValue)
+                            //    firstValue = Point.Abs(facing.AsPoint()) * firstValue.Transform(x => (startFace.Length - 1) - x);
 
                             var secondValue = connectedEdge.Direction.Opposite().AsPoint().Transform(x => x > 0 ? 1 : 0) * (startFace.Length - 1);
 
@@ -378,14 +404,14 @@ namespace Advent_Of_Code.Days
 
                         var startLocal = startFace.GridToLocal(start);
 
-                        var startAxisMask = Point.Abs(facing.AsPoint());
+                        var startAxisMask = Point.Abs(facing.TurnLeft().AsPoint());
                         var startAxisValue = startAxisMask * startLocal.Transform(x => (startFace.Length - 1) - x); ;
 
-                        var firstValue = new Point(startAxisValue.Y, startAxisValue.X);
+                        var firstValue = new Point(startAxisValue);
 
                         var secondValue = connectedEdge.Direction.Opposite().AsPoint().Transform(x => x > 0 ? 1 : 0) * (startFace.Length - 1);
 
-                        resultPoint = firstValue + secondValue;
+                        resultPoint = connectedFace.LocalToGrid(firstValue + secondValue);
                         resultFacing = connectedEdge.Direction;
 
                         break;
@@ -512,7 +538,7 @@ namespace Advent_Of_Code.Days
                 if (ccwFace != null)
                 {
                     var connection = new Edge(ccwFace.Id, direction.TurnLeft());
-                    AddMapping(edge, connection, EdgeType.Connected);
+                    AddMapping(edge, connection, EdgeType.Short);
                 }
                 else
                 {
@@ -523,7 +549,7 @@ namespace Advent_Of_Code.Days
                     if (cwFace != null)
                     {
                         var connection = new Edge(cwFace.Id, direction.TurnRight());
-                        AddMapping(edge, connection, EdgeType.Connected);
+                        AddMapping(edge, connection, EdgeType.Short);
                     }
                 }
             }
