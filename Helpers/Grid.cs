@@ -76,6 +76,9 @@ namespace Advent_Of_Code.Helpers.Maps
 
         public Grid(int width, int height, List<T> squares)
         {
+            if (!(width * height == squares.Count))
+                throw new Exception("Width and Height do not match number of Squares provided");
+
             _width = width;
             _height = height;
             _squares = squares;
