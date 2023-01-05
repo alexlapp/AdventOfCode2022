@@ -1,6 +1,7 @@
 ﻿using Advent_Of_Code.Helpers.Maps;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,10 +28,19 @@ namespace Advent_Of_Code.Days
 
             var start = new Point(input.IndexOf('.'), 0);
             var exit = new Point(input.Replace("\r\n", "").LastIndexOf('.') % valleyWidth, valleyHeight - 1);
-            var blizzards = ParseBlizzards(input);
 
-            int minutes = FindExitRecur(start, exit, blizzards);
+            (var hBlizzards, var vBlizzards) = ParseBlizzards(valleyWidth, valleyHeight, input);
 
+            int trimPrecision = 0;
+            int minutes;
+            do
+            {
+                trimPrecision += 1000;
+                minutes = FindExitRecur(start, exit, hBlizzards, vBlizzards, trimPrecision);
+            }
+            while (minutes < 0);
+
+            Console.WriteLine($"Trim Precision required: {trimPrecision}");
             Console.WriteLine($"Number of minutes to reach exit: {minutes}");
             return;
         }
@@ -63,16 +73,19 @@ namespace Advent_Of_Code.Days
             Console.WriteLine();
         }
 
-        private int FindExitRecur(Point startingPosition, Point target, List<Blizzard> blizzards)
+        private int FindExitRecur(Point startingPosition, Point target, Dictionary<int, List<Blizzard>> hBlizzards, Dictionary<int, List<Blizzard>> vBlizzards, int trimPrecision)
         {
             var moveBizzardsAt = 0;
 
-            var moveQueue = new Queue<(int minutes, Point pos)>();
-            moveQueue.Enqueue((minutes: 0, pos: startingPosition));
+            var moveQueue = new List<(int minutes, Point pos)>();
+            moveQueue.Add((minutes: 0, pos: startingPosition));
+
+            var nextQueue = new List<(int minutes, Point pos)>();
 
             while (moveQueue.Count > 0)
             {
-                (var minutes, var position) = moveQueue.Dequeue();
+                (var minutes, var position) = moveQueue.First();
+                moveQueue.RemoveAt(0);
 
                 if (position == target)
                     return minutes;
@@ -80,21 +93,28 @@ namespace Advent_Of_Code.Days
                 if (minutes == moveBizzardsAt)
                 {
                     moveBizzardsAt = minutes + 1;
-                    MoveBlizzards(blizzards);
+                    MoveBlizzards(hBlizzards);
+                    MoveBlizzards(vBlizzards);
                 }
 
-                foreach (var move in PossibleNewPositions(position, target, blizzards))
-                    moveQueue.Enqueue((minutes: minutes + 1, move));
+                foreach (var move in PossibleNewPositions(position, target, hBlizzards, vBlizzards))
+                    nextQueue.Add((minutes: minutes + 1, move));
 
                 if (position == startingPosition && moveQueue.Count == 0)
-                    moveQueue.Enqueue((minutes + 1, position));
+                    nextQueue.Add((minutes + 1, position));
+
+                if (moveQueue.Count == 0)
+                {
+                    moveQueue = nextQueue.OrderBy(mv => Math.Sqrt(Math.Pow(target.X - position.X, 2) + Math.Pow(target.Y - position.Y, 2))).Take(Math.Min(nextQueue.Count, trimPrecision)).ToList();
+                    nextQueue.Clear();
+                }
             }
 
             return -1;
         }
 
         private List<Point> _cardinalDirecions = new List<Point> { new Point(0, 0), new Point(-1, 0), new Point(1, 0), new Point(0, -1), new Point(0, 1) };
-        private List<Point> PossibleNewPositions(Point currentPos, Point exit, List<Blizzard> blizzards)
+        private List<Point> PossibleNewPositions(Point currentPos, Point exit, Dictionary<int, List<Blizzard>> hBlizzards, Dictionary<int, List<Blizzard>> vBlizzards)
         {
             var result = new List<Point>();
 
@@ -108,7 +128,7 @@ namespace Advent_Of_Code.Days
                 if (newPos.X <= _valleyLeftX || newPos.X >= _valleyRightX || newPos.Y <= _valleyTopY || newPos.Y >= _valleyBottomY)
                     continue;
 
-                if (blizzards.Exists(b => b.Position == newPos))
+                if (hBlizzards[newPos.Y].Exists(b => b.Position == newPos) || vBlizzards[newPos.X].Exists(b => b.Position == newPos))
                     continue;
 
                 result.Add(newPos);
@@ -117,9 +137,9 @@ namespace Advent_Of_Code.Days
             return result;
         }
 
-        private void MoveBlizzards(List<Blizzard> blizzards)
+        private void MoveBlizzards(Dictionary<int, List<Blizzard>> blizzards)
         {
-            foreach (var blizzard in blizzards)
+            foreach (var blizzard in blizzards.SelectMany(kvp => kvp.Value))
             {
                 var newPos = blizzard.Position + blizzard.Direction;
                 if (newPos.X == _valleyLeftX)
@@ -143,9 +163,19 @@ namespace Advent_Of_Code.Days
             }
         }
 
-        private List<Blizzard> ParseBlizzards(string input)
+        private (Dictionary<int, List<Blizzard>>, Dictionary<int, List<Blizzard>>) ParseBlizzards(int width, int height, string input)
         {
-            var result = new List<Blizzard>();
+            var vertical = new Dictionary<int, List<Blizzard>>();
+            for (int col = 0; col < width; col++)
+            {
+                vertical[col] = new List<Blizzard>();
+            }
+
+            var horizontal = new Dictionary<int, List<Blizzard>>();
+            for (int row = 0; row < height; row++)
+            {
+                horizontal[row] = new List<Blizzard>();
+            }
 
             var lines = input.Split("\r\n").ToList();
             for (int y = 0; y < lines.Count; y++)
@@ -153,14 +183,18 @@ namespace Advent_Of_Code.Days
                 for (int x = 0; x < lines[y].Length; x++)
                 {
                     var c = lines[y][x];
-                    if (c == 'v' || c == '^' || c == '<' || c == '>')
+                    if (c == 'v' || c == '^')
                     {
-                        result.Add(new Blizzard(x, y, c));
+                        vertical[x].Add(new Blizzard(x, y, c));
+                    }
+                    if (c == '<' || c == '>')
+                    {
+                        horizontal[y].Add(new Blizzard(x, y, c));
                     }
                 }
             }
 
-            return result;
+            return (horizontal, vertical);
         }
 
         class Blizzard
