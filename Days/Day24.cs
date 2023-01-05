@@ -31,17 +31,13 @@ namespace Advent_Of_Code.Days
 
             (var hBlizzards, var vBlizzards) = ParseBlizzards(valleyWidth, valleyHeight, input);
 
-            int trimPrecision = 0;
-            int minutes;
-            do
-            {
-                trimPrecision += 1000;
-                minutes = FindExitRecur(start, exit, hBlizzards, vBlizzards, trimPrecision);
-            }
-            while (minutes < 0);
-
-            Console.WriteLine($"Trim Precision required: {trimPrecision}");
+            var minutes = findQuickestPath(start, exit, hBlizzards, vBlizzards);
             Console.WriteLine($"Number of minutes to reach exit: {minutes}");
+
+            minutes += findQuickestPath(exit, start, hBlizzards, vBlizzards) + 1;
+            minutes += findQuickestPath(start, exit, hBlizzards, vBlizzards) + 1;
+            Console.WriteLine($"Number of minutes to reach exit, then start, then exit: {minutes}");
+
             return;
         }
 
@@ -73,14 +69,14 @@ namespace Advent_Of_Code.Days
             Console.WriteLine();
         }
 
-        private int FindExitRecur(Point startingPosition, Point target, Dictionary<int, List<Blizzard>> hBlizzards, Dictionary<int, List<Blizzard>> vBlizzards, int trimPrecision)
+        private int findQuickestPath(Point startingPosition, Point target, Dictionary<int, List<Blizzard>> hBlizzards, Dictionary<int, List<Blizzard>> vBlizzards)
         {
             var moveBizzardsAt = 0;
 
             var moveQueue = new List<(int minutes, Point pos)>();
             moveQueue.Add((minutes: 0, pos: startingPosition));
 
-            var nextQueue = new List<(int minutes, Point pos)>();
+            var visited = new HashSet<(int, string)>();
 
             while (moveQueue.Count > 0)
             {
@@ -90,6 +86,11 @@ namespace Advent_Of_Code.Days
                 if (position == target)
                     return minutes;
 
+                if (visited.Contains((minutes, position.ToString()))) 
+                    continue;
+
+                visited.Add((minutes, position.ToString()));
+
                 if (minutes == moveBizzardsAt)
                 {
                     moveBizzardsAt = minutes + 1;
@@ -97,24 +98,15 @@ namespace Advent_Of_Code.Days
                     MoveBlizzards(vBlizzards);
                 }
 
-                foreach (var move in PossibleNewPositions(position, target, hBlizzards, vBlizzards))
-                    nextQueue.Add((minutes: minutes + 1, move));
-
-                if (position == startingPosition && moveQueue.Count == 0)
-                    nextQueue.Add((minutes + 1, position));
-
-                if (moveQueue.Count == 0)
-                {
-                    moveQueue = nextQueue.OrderBy(mv => Math.Sqrt(Math.Pow(target.X - position.X, 2) + Math.Pow(target.Y - position.Y, 2))).Take(Math.Min(nextQueue.Count, trimPrecision)).ToList();
-                    nextQueue.Clear();
-                }
+                foreach (var move in PossibleNewPositions(position, target, startingPosition, hBlizzards, vBlizzards))
+                    moveQueue.Add((minutes: minutes + 1, move));
             }
 
             return -1;
         }
 
         private List<Point> _cardinalDirecions = new List<Point> { new Point(0, 0), new Point(-1, 0), new Point(1, 0), new Point(0, -1), new Point(0, 1) };
-        private List<Point> PossibleNewPositions(Point currentPos, Point exit, Dictionary<int, List<Blizzard>> hBlizzards, Dictionary<int, List<Blizzard>> vBlizzards)
+        private List<Point> PossibleNewPositions(Point currentPos, Point exit, Point startPos, Dictionary<int, List<Blizzard>> hBlizzards, Dictionary<int, List<Blizzard>> vBlizzards)
         {
             var result = new List<Point>();
 
@@ -124,6 +116,12 @@ namespace Advent_Of_Code.Days
 
                 if (newPos == exit)
                     return new List<Point>() { newPos };
+
+                if (newPos == startPos)
+                {
+                    result.Add(newPos);
+                    continue;
+                }
 
                 if (newPos.X <= _valleyLeftX || newPos.X >= _valleyRightX || newPos.Y <= _valleyTopY || newPos.Y >= _valleyBottomY)
                     continue;
